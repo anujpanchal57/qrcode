@@ -47,6 +47,8 @@
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
 
     var client = new QRClient();
+    
+    var imageDecoderWorker = new Worker('scripts/jsqrcode/qrworker.js');
 
     var self = this;
 
@@ -55,6 +57,28 @@
 
     this.detectQRCode = function(imageData, callback) {
       callback = callback || function() {};
+      
+      // This is how the worker gets the image to work on
+      imageDecoderWorker.postMessage(imageData);
+
+      imageDecoderWorker.onmessage = function(result) {
+        // Here can be a possible bug, instead of using only result we have to use result.data
+        // As result itself is an object
+        var url = result.data;
+        if(url !== undefined) {
+          self.currentUrl = url;
+        }
+        callback(url);
+      };
+
+      imageDecoderWorker.onerror = function(error) {
+        function WorkerException(message) {
+          this.name = "WorkerException";
+          this.message = message;
+        };
+        throw new WorkerException('Deocde error');
+        callback(undefined);
+      };
 
       client.decode(imageData, function(result) {
         if(result !== undefined) {
